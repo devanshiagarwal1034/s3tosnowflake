@@ -51,7 +51,43 @@ Repartitioning and Writing Data: The job then repartitions the data into a singl
 Workflow Overview
 Triggering the Process: The Lambda function starts the Glue job, waits for its completion, and monitors the status.
 Data Processing: The Glue job loads raw data, performs necessary transformations (including joins and column renaming), and writes the processed data back to S3.
-File Renaming: Once the job completes, the Lambda function renames the processed data file to include a timestamp, ensuring that each file has a unique name.
+File Renaming: Once the job completes, the Lambda function renames the processed data file to include a timestamp, ensuring that each file has a unique name. and load it to the renamed_processed_file folder.
 
 
+
+
+Snowflake -  I have created the TRAVEL_DB database and raw schema , then I have create the CUSTOMER_BOOKINGS_DATA and CUSTOMER_BOOKINGS_STAGING table , 
+
+
+1. Cloud Storage Integration in Snowflake
+To begin with, you needed a secure connection between Snowflake and your Amazon S3 storage where your customer booking data is stored. This is achieved through a storage integration. Think of this integration as Snowflake's way of "talking" to AWS S3 securely, using an AWS IAM role that grants the necessary permissions.
+
+By setting up this integration, you've ensured that Snowflake can access the data stored in your S3 bucket and work with it directly without needing manual intervention. You allowed Snowflake to access any data location in your S3 bucket (STORAGE_ALLOWED_LOCATIONS = '*'), which is flexible but could be adjusted later if needed for security or organizational reasons.
+
+2. Creating the Stage for Data Loading
+   Once the integration was set up, the next step was creating a stage in Snowflake. A stage is essentially a reference to a data storage location, in this case, your S3 bucket. By creating this stage, you've told Snowflake exactly where to find the data, and you've also defined how the data is structured (CSV format with specific delimiters, and an instruction to skip the header row).
+
+This is like preparing a "loading dock" for your data, where Snowflake knows exactly where to pick up the files from S3 and how to interpret them.
+to configure this , I have gone through the below snowflake documentation -
+https://docs.snowflake.com/en/user-guide/data-load-s3-config-storage-integration#step-3-create-a-cloud-storage-integration-in-snowflake
+
+3. Setting Up Snowpipe for Continuous Data Loading
+I have used below snowflake documentation to setup it ( I have used option 1)
+https://docs.snowflake.com/en/user-guide/data-load-snowpipe-auto-s3
+To automate the process of loading data into Snowflake, you've used Snowpipe, which is Snowflake's continuous data ingestion service. With Snowpipe enabled, the system automatically detects new files that arrive in your S3 bucket and loads them into Snowflake without you having to manually trigger the process.
+
+This "auto-ingest" functionality saves a lot of time and effort. You don’t have to worry about manually loading each new file; Snowpipe does it for you. If any errors occur while loading, Snowflake will continue processing the rest of the data, so you don't lose out on the rest of the files. This makes your process more resilient and automated
+4. Processing the Data with a Stored Procedure
+After Snowpipe loads the data into a staging table (a temporary place to hold data before it’s processed), you wrote a stored procedure to handle the actual processing of that data. The stored procedure performs a MERGE operation to check whether the customer data already exists in your main table (the CUSTOMER_BOOKINGS_DATA table).
+
+If a matching record exists (based on CUSTOMER_ID), it updates the record with new values.
+If no match is found, it inserts a new record into the main table.
+This step ensures that your main table is always up-to-date with the latest customer booking data, whether it’s new data or updates to existing data.
+
+Additionally, after the merge, you truncate the staging table to clear out processed data, ensuring that the staging table is ready for the next batch of data.
+
+5. Automating the Process with Tasks
+Now, because you don’t want to manually run the stored procedure every time, you've automated the process using tasks. Tasks in Snowflake are used to schedule and automate SQL operations (like calling the stored procedure) to run at specific intervals.
+
+You set your task to execute the stored procedure every 5 minutes, which means that Snowflake will automatically process new data from the staging table into the main table at regular intervals. The task will run continuously as long as it’s active, so you don’t have to worry about setting it up again after the first time.
 
