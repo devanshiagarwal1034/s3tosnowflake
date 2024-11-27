@@ -24,45 +24,34 @@ The pipeline starts with raw customer booking data stored in an S3 bucket (custo
 - `customer_details_raw.csv` (Contains customer information)
 - `booking_details_raw.csv` (Contains booking information)
 
-### 2. **AWS Glue (Data Transformation)**
+In this setup, there are two main components: the Lambda function (CustomerBookingFunction.py) and the AWS Glue job (CustomerBooking.py). Both components work together to automate the data processing pipeline, which involves extracting data from raw sources, transforming it, and then renaming and storing the processed results in a different S3 location.
 
-- It extracts data from the raw files in S3, performing transformations such as cleaning, renaming columns, and joining the `customer_details_raw.csv` file with the `booking_details_raw.csv` on the `CUSTOMER_ID` field.
-- It then writes the transformed data back into the **processed-data** folder in S3.
+1. Lambda Function (CustomerBookingFunction.py)
+The Lambda function is responsible for triggering the AWS Glue job and monitoring its status. Here's a breakdown of how it works:
 
-### 3. **AWS Lambda (Orchestration and File Renaming)**
+Triggering the Glue Job: The function starts by initializing a connection to the AWS Glue service using the boto3 client. It then triggers the Glue job named CustomerBooking via the start_job_run API call. The function captures the JobRunId, which uniquely identifies this job run.
 
-Here’s how it works:
+Job Status Monitoring: The Lambda function enters a loop where it repeatedly checks the status of the Glue job using the get_job_run API call. It checks the job's state every 30 seconds, printing updates on the job status. If the job state is SUCCEEDED, it moves to the next step of renaming the processed file. If the job fails or is stopped, the Lambda function raises an error and stops the process.
 
-#### **Triggering the Glue Job**
-- When new raw data arrives in S3, the Lambda function execute the Glue job. It uses the AWS SDK to start the Glue job and monitors its progress.
-- The Lambda function checks the status of the Glue job at regular intervals, ensuring that the job runs to completion.
+Renaming the Processed File: After the Glue job successfully completes, the Lambda function proceeds to call a helper function rename_processed_file(). This function is responsible for renaming the processed data file that has been written to the S3 bucket. The new file name is generated with a timestamp to make it unique and easily identifiable.
 
-#### **Renaming the Processed File**
-- After the Glue job completes successfully, the Lambda function automatically renames the processed file and moves it to the **renamed_processed_data** folder in S3.
-- This step ensures that the processed file has a unique timestamped name, making it easier to track and manage different versions of the processed data.
+2. AWS Glue Job (CustomerBooking.py)
+The Glue job handles the data transformation, primarily focusing on joining and processing customer and booking data. Here’s how it works:
 
-The Lambda function plays a key role in automating both the execution of the Glue job and the post-processing steps, allowing me to focus on higher-level tasks without worrying about manual triggers or file handling.
+Loading Raw Data: The Glue job starts by reading raw data files from an S3 bucket using AWS Glue's create_dynamic_frame.from_options. The data includes customer details (customer_details_raw.csv) and booking details (booking_details_raw.csv). These raw files are loaded into Glue's DynamicFrames, which are schema-aware representations of the data, allowing for more flexible transformations.
 
-### 4. **Snowflake Setup (Data Loading)**
+Renaming Columns: Before performing any joins, the Glue job renames a column in the bookings data (CUSTOMER_ID to BOOKINGS_CUSTOMER_ID). This step avoids column name conflicts during the join operation between the customers and bookings data.
 
-Once the processed data is available in S3, the next step is loading it into **Snowflake**. Here's how that part of the pipeline works:
+Joining Data: The two datasets are then joined using the Join.apply method. The join is performed on the CUSTOMER_ID field from the customers data and the renamed BOOKINGS_CUSTOMER_ID from the bookings data. This join combines the customer details with their respective booking details.
 
-1. **External Stage**: Snowflake is set up with an external stage that points to the S3 bucket where the processed data files are stored.
-2. **Snowpipe**: I’ve set up **Snowpipe** to automatically load data from S3 into Snowflake as soon as the file is available. Snowpipe continuously monitors the S3 bucket and ensures that the data is ingested as soon as it’s ready.
-3. **Tasks and Stored Procedures**: To make the data loading process fully automated, I created tasks and stored procedures in Snowflake. These automate the process of transforming and loading data as soon as new files are available.
+Data Transformation: After the join, the job further processes the data. It converts the resulting DynamicFrame into a Spark DataFrame for more advanced transformations. In this case, it drops the BOOKINGS_CUSTOMER_ID column, as it is no longer needed after the join.
 
+Repartitioning and Writing Data: The job then repartitions the data into a single file (using .coalesce(1)) to make the output easier to handle, ensuring that only one file is produced. The transformed data is written back to the S3 bucket in the processed-data folder, in CSV format with headers included.
 
-## **Why This Matters**
-
-This project is a great example of how cloud technologies like AWS and Snowflake can work together to automate and streamline data workflows. By using Glue, Lambda, and Snowflake, I’ve been able to set up an end-to-end solution for processing, transforming, and loading data with minimal manual effort. Whether you're working with customer booking data like in this example or any other large dataset, this approach makes data management easier and more efficient.
+Workflow Overview
+Triggering the Process: The Lambda function starts the Glue job, waits for its completion, and monitors the status.
+Data Processing: The Glue job loads raw data, performs necessary transformations (including joins and column renaming), and writes the processed data back to S3.
+File Renaming: Once the job completes, the Lambda function renames the processed data file to include a timestamp, ensuring that each file has a unique name.
 
 
-## **Conclusion**
 
-Building this automated pipeline was a fun and challenging experience! It helped me dive deeper into AWS Glue, Lambda, and Snowflake, and the end result is a fully automated solution that can scale and adapt as the dataset grows. If you’re interested in automating your own data workflows, I highly recommend exploring how AWS services like Glue, Lambda, and Snowpipe can be used to build a seamless data pipeline.
-
-Feel free to explore the repository, and let me know if you have any questions or suggestions!
-
----
-
-This version has a bit more personality and a conversational tone to make it feel more engaging, while still keeping the technical explanations clear. Let me know if you need any further adjustments or more details! 😊
