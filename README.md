@@ -1,4 +1,4 @@
-# **S3 to Snowflake Data Pipeline Project**
+# **S3 to Snowflake Data Pipeline**
 
 Welcome to my Customer Booking Data Pipeline project! 🚀 This project demonstrates an end-to-end, automated solution to process and load customer booking data from AWS S3 into Snowflake, leveraging key AWS services and Snowflake features for seamless data transformation and analysis.
 
@@ -90,5 +90,5 @@ Once Snowpipe loads the data into a staging table, a stored procedure is used to
 **8. Automating the Process with Tasks**
 To eliminate the need for manual intervention, I used **Snowflake Tasks** to schedule the stored procedure to run automatically at regular intervals (every 5 minutes). Tasks in Snowflake are used to automate SQL operations, ensuring that new data is processed continuously and that the main table remains up-to-date without requiring any manual triggers. This automated scheduling ensures the process runs smoothly without any manual effort.
 
-Conclusion
+### **Conclusion** -
 This project demonstrates a robust, automated data pipeline using AWS and Snowflake. By combining the strengths of these platforms, the pipeline ensures reliable data processing and analysis.
