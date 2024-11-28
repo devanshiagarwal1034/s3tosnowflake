@@ -34,7 +34,8 @@ To automate the processing of these files, I used two main components: a Lambda 
 
 #### 2. **Lambda Function (CustomerBookingFunction.py)**
 
-AWS/Lambda/CustomerBookingFunction.py
+
+[AWS/Lambda/CustomerBookingFunction.py](AWS/Lambda/CustomerBookingFunction.py)
 
 The Lambda function serves multiple purposes:
 - **Triggering the Glue Job**: It begins by establishing a connection to AWS Glue via the boto3 client. The function then triggers the Glue job named `CustomerBooking` using the `start_job_run` API call. It also captures the `JobRunId` to track this specific job run.
@@ -43,7 +44,8 @@ The Lambda function serves multiple purposes:
 
 #### 3. **AWS Glue Job (CustomerBooking.py)**
 
-AWS/Glue/CustomerBooking.py
+
+[AWS/Glue/CustomerBooking.py](AWS/Glue/CustomerBooking.py)
 
 - **Loading Raw Data**: The job begins by loading the raw data files from the S3 bucket using Glue's `create_dynamic_frame.from_options`. This step pulls the customer data (`customer_details_raw.csv`) and booking data (`booking_details_raw.csv`) into Glue's DynamicFrames, which are schema-aware representations that make data transformation easier.
 - **Renaming Columns**: Before joining the two datasets, the Glue job renames a column in the bookings data (`CUSTOMER_ID` to `BOOKINGS_CUSTOMER_ID`) to avoid conflicts during the join operation.
@@ -54,8 +56,11 @@ AWS/Glue/CustomerBooking.py
 #### **Workflow Overview**
 
 - **Triggering the Process**: The Lambda function triggers the Glue job, waits for its completion, and monitors the status.
-- **Data Processing**: The Glue job loads, transforms, and processes the data, and then writes it back to the S3 bucket in a processed-data folder. (AWS/S3/customer-booking-data-pipeline /processed-data)
-- **File Renaming**: After the job finishes, the Lambda function renames the processed file to include a timestamp, ensuring that each file is uniquely identifiable and easily traceable and load it to renamed_processed_data folder. (AWS/S3/customer-booking-data-pipeline / renamed_processed_data)
+- **Data Processing**: The Glue job loads, transforms, and processes the data, and then writes it back to the S3 bucket in a processed-data folder.
+[AWS/S3/customer-booking-data-pipeline /processed-data](AWS/S3/customer-booking-data-pipeline/processed-data)
+
+- **File Renaming**: After the job finishes, the Lambda function renames the processed file to include a timestamp, ensuring that each file is uniquely identifiable and easily traceable and load it to renamed_processed_data folder. 
+  [AWS/S3/customer-booking-data-pipeline / renamed_processed_data](AWS/S3/customer-booking-data-pipeline/renamed_processed_data)
 
  **4.Cloud Storage Integration in Snowflake**
 The first step in Snowflake is to establish a secure connection between Snowflake and AWS S3, where the customer booking data is stored. This is accomplished by creating a **storage integration**, which enables Snowflake to securely "talk" to S3. This integration uses an AWS IAM role that grants the necessary permissions, allowing Snowflake to access the S3 data without manual intervention. 
