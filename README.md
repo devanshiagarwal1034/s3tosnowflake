@@ -33,13 +33,18 @@ The pipeline begins with the raw customer booking data, which is stored in an S3
 To automate the processing of these files, I used two main components: a Lambda function (named `CustomerBookingFunction.py`) and an AWS Glue job (`CustomerBooking.py`). Both of these components work together to manage the data pipeline, from extraction to transformation and renaming.
 
 #### 2. **Lambda Function (CustomerBookingFunction.py)**
+
+AWS/Lambda/CustomerBookingFunction.py
+
 The Lambda function serves multiple purposes:
 - **Triggering the Glue Job**: It begins by establishing a connection to AWS Glue via the boto3 client. The function then triggers the Glue job named `CustomerBooking` using the `start_job_run` API call. It also captures the `JobRunId` to track this specific job run.
 - **Job Status Monitoring**: After triggering the Glue job, the Lambda function monitors its status. It checks the job state every 30 seconds using the `get_job_run` API call. If the job state returns `SUCCEEDED`, it proceeds to the next step. If there’s an error or if the job fails, the Lambda function raises an error and halts the pipeline.
 - **Renaming the Processed File**: Once the Glue job completes successfully, the Lambda function renames the processed file using a helper function, `rename_processed_file()`. This function adds a timestamp to the file name, ensuring each processed file has a unique identifier.
 
 #### 3. **AWS Glue Job (CustomerBooking.py)**
-The Glue job handles the heavy lifting of transforming and processing the data. Here's how it works:
+
+AWS/Glue/CustomerBooking.py
+
 - **Loading Raw Data**: The job begins by loading the raw data files from the S3 bucket using Glue's `create_dynamic_frame.from_options`. This step pulls the customer data (`customer_details_raw.csv`) and booking data (`booking_details_raw.csv`) into Glue's DynamicFrames, which are schema-aware representations that make data transformation easier.
 - **Renaming Columns**: Before joining the two datasets, the Glue job renames a column in the bookings data (`CUSTOMER_ID` to `BOOKINGS_CUSTOMER_ID`) to avoid conflicts during the join operation.
 - **Joining Data**: The two datasets are then merged using the `Join.apply` method, with the join performed on the `CUSTOMER_ID` field from the customer data and the `BOOKINGS_CUSTOMER_ID` from the booking data.
@@ -47,9 +52,10 @@ The Glue job handles the heavy lifting of transforming and processing the data. 
 - **Repartitioning and Writing Data**: Finally, the job repartitions the data into a single file (using `.coalesce(1)`) to simplify output handling. It then writes the processed data back to S3 in the **processed-data** folder in CSV format, ensuring the output includes headers.
 
 #### **Workflow Overview**
+
 - **Triggering the Process**: The Lambda function triggers the Glue job, waits for its completion, and monitors the status.
-- **Data Processing**: The Glue job loads, transforms, and processes the data, and then writes it back to the S3 bucket in a processed-data folder.
-- **File Renaming**: After the job finishes, the Lambda function renames the processed file to include a timestamp, ensuring that each file is uniquely identifiable and easily traceable and load it to renamed_processed_data folder.
+- **Data Processing**: The Glue job loads, transforms, and processes the data, and then writes it back to the S3 bucket in a processed-data folder. (AWS/S3/customer-booking-data-pipeline /processed-data)
+- **File Renaming**: After the job finishes, the Lambda function renames the processed file to include a timestamp, ensuring that each file is uniquely identifiable and easily traceable and load it to renamed_processed_data folder. (AWS/S3/customer-booking-data-pipeline / renamed_processed_data)
 
  **4.Cloud Storage Integration in Snowflake**
 The first step in Snowflake is to establish a secure connection between Snowflake and AWS S3, where the customer booking data is stored. This is accomplished by creating a **storage integration**, which enables Snowflake to securely "talk" to S3. This integration uses an AWS IAM role that grants the necessary permissions, allowing Snowflake to access the S3 data without manual intervention. 
